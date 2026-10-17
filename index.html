@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Noor Rider</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f8f5;
+      text-align: center;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      max-width: 400px;
+      margin: auto;
+      box-shadow: 0 3px 12px #ccc;
+    }
+    h1 { color: #087f5b; }
+    button {
+      padding: 12px;
+      margin: 6px;
+      border: 0;
+      border-radius: 8px;
+      background: #087f5b;
+      color: white;
+      font-size: 16px;
+    }
+    input {
+      padding: 12px;
+      margin: 8px 0;
+      width: 85%;
+      border: 1px solid #bbb;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🚕 Noor Rider</h1>
+    <p>آپ کا سفر، آسان سفر</p>
+    <button onclick="setLang('en')">English</button>
+    <button onclick="setLang('ur')">اردو</button>
+    <h3 id="heading">Book Your Ride</h3>
+    <input id="pickup" placeholder="Pickup point">
+    <input id="destination" placeholder="Destination">
+    <br>
+    <button onclick="bookRide()" id="book">Request Ride</button>
+    <p id="message"></p>
+    <hr>
+    <button onclick="choose('Motorcycle')">🏍️ Bike</button>
+    <button onclick="choose('Rickshaw')">🛺 Rickshaw</button>
+    <button onclick="choose('Car')">🚗 Car</button>
+  </div>
+<script>
+  let vehicle = "Motorcycle";
+  let lang = "en";
+
+  function choose(type) {
+    vehicle = type;
+    document.getElementById("message").textContent =
+      "Selected: " + type;
+  }
+
+  function bookRide() {
+    const p = document.getElementById("pickup").value.trim();
+    const d = document.getElementById("destination").value.trim();
+
+    document.getElementById("message").textContent =
+      p && d
+      ? "Demo request: " + vehicle + " | " + p + " → " + d
+      : "Please enter pickup and destination.";
+  }
+
+  function setLang(language) {
+    lang = language;
+    document.getElementById("heading").textContent =
+      lang === "ur" ? "اپنی سواری بک کریں" : "Book Your Ride";
+    document.getElementById("pickup").placeholder =
+      lang === "ur" ? "پک اپ مقام" : "Pickup point";
+    document.getElementById("destination").placeholder =
+      lang === "ur" ? "منزل" : "Destination";
+    document.getElementById("book").textContent =
+      lang === "ur" ? "سواری کی درخواست" : "Request Ride";
+  }
+</script>
+</body>
+  </html>
+      
