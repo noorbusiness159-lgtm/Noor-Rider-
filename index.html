@@ -1,92 +1,265 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Noor Rider</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f1f8f5;
-      text-align: center;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      padding: 24px;
-      border-radius: 16px;
-      max-width: 400px;
-      margin: auto;
-      box-shadow: 0 3px 12px #ccc;
-    }
-    h1 { color: #087f5b; }
-    button {
-      padding: 12px;
-      margin: 6px;
-      border: 0;
-      border-radius: 8px;
-      background: #087f5b;
-      color: white;
-      font-size: 16px;
-    }
-    input {
-      padding: 12px;
-      margin: 8px 0;
-      width: 85%;
-      border: 1px solid #bbb;
-      border-radius: 8px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Noor Rider</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial;background:#f1f5f9;margin:0;color:#172033}
+header{background:#087f5b;color:white;padding:20px;text-align:center}
+main{max-width:600px;margin:auto;padding:16px}
+.card{background:white;padding:18px;border-radius:14px;margin:14px 0;box-shadow:0 2px 10px #0001}
+h2{font-size:20px}
+input,select,button{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #ccd5df;font-size:16px}
+button{background:#087f5b;color:white;border:0;font-weight:bold;cursor:pointer}
+button.secondary{background:#e6f4ee;color:#087f5b}
+button.danger{background:#c0392b}
+.hidden{display:none}
+.tabs{display:flex;gap:8px}
+.tabs button{flex:1}
+.small{font-size:13px;color:#64748b}
+.item{padding:12px;background:#f8fafc;border-radius:8px;margin:8px 0}
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>🚕 Noor Rider</h1>
-    <p>آپ کا سفر، آسان سفر</p>
-    <button onclick="setLang('en')">English</button>
-    <button onclick="setLang('ur')">اردو</button>
-    <h3 id="heading">Book Your Ride</h3>
-    <input id="pickup" placeholder="Pickup point">
-    <input id="destination" placeholder="Destination">
-    <br>
-    <button onclick="bookRide()" id="book">Request Ride</button>
-    <p id="message"></p>
-    <hr>
-    <button onclick="choose('Motorcycle')">🏍️ Bike</button>
-    <button onclick="choose('Rickshaw')">🛺 Rickshaw</button>
-    <button onclick="choose('Car')">🚗 Car</button>
-  </div>
+<header>
+<h1>🚖 Noor Rider</h1>
+<p>Safe • Simple • Reliable</p>
+</header>
+
+<main>
+<div class="card">
+<div class="tabs">
+<button onclick="setRole('passenger')">Passenger</button>
+<button onclick="setRole('driver')">Driver</button>
+</div>
+<p id="roleText">Passenger Account</p>
+</div>
+
+<div class="card" id="auth">
+<h2>Register / Login</h2>
+<input id="name" placeholder="Full name">
+<input id="phone" placeholder="Phone number">
+<input id="password" type="password" placeholder="Password">
+<div id="driverFields" class="hidden">
+<input id="vehicle" placeholder="Vehicle model">
+<input id="plate" placeholder="Vehicle number plate">
+</div>
+<input id="refInput" placeholder="Referral code (optional)">
+<button onclick="register()">Register / Login</button>
+<p class="small">Demo only: accounts are stored in this browser.</p>
+</div>
+
+<div id="app" class="hidden">
+<div class="card">
+<h2 id="welcome"></h2>
+<p id="profile"></p>
+<p>Your referral code: <b id="myRef"></b></p>
+<button class="secondary" onclick="shareRef()">Share referral code</button>
+<button class="danger" onclick="logout()">Logout</button>
+</div>
+
+<div class="card" id="passengerPanel">
+<h2>Book a Ride</h2>
+<input id="pickup" placeholder="Pickup location">
+<input id="destination" placeholder="Destination">
+<select id="rideType">
+<option>Bike</option>
+<option>Rickshaw</option>
+<option>Car</option>
+</select>
+<button onclick="requestRide()">Request Ride</button>
+</div>
+
+<div class="card hidden" id="driverPanel">
+<h2>Driver Dashboard</h2>
+<button id="onlineBtn" onclick="toggleOnline()">Go Online</button>
+<p id="driverStatus">You are offline.</p>
+<h3>Ride Requests</h3>
+<div id="requests"></div>
+</div>
+
+<div class="card">
+<h2>My Rides</h2>
+<div id="myRides">No rides yet.</div>
+</div>
+
+<div class="card">
+<h2>Referral Dashboard</h2>
+<p>Successful referrals: <b id="refCount">0</b></p>
+<p>Demo commission: Rs. <b id="commission">0</b></p>
+<p class="small">Commission is a demonstration value, not a real payment.</p>
+</div>
+</div>
+</main>
+
 <script>
-  let vehicle = "Motorcycle";
-  let lang = "en";
+const KEY="noorRiderDemoV1";
+let db;
+try {
+ db=JSON.parse(localStorage.getItem(KEY))||{
+ users:[],rides:[],current:null
+ };
+} catch(e) {
+ db={users:[],rides:[],current:null};
+}
+let role="passenger",online=false;
 
-  function choose(type) {
-    vehicle = type;
-    document.getElementById("message").textContent =
-      "Selected: " + type;
+function save(){
+ localStorage.setItem(KEY,JSON.stringify(db));
+}
+function setRole(r){
+ role=r;
+ document.getElementById("roleText").textContent=
+ r==="driver"?"Driver Account":"Passenger Account";
+ document.getElementById("driverFields").classList.toggle("hidden",r!=="driver");
+}
+function register(){
+ const name=document.getElementById("name").value.trim();
+ const phone=document.getElementById("phone").value.trim();
+ const password=document.getElementById("password").value;
+ if(!name||!phone||!password){
+  alert("Enter name, phone and password.");
+  return;
+ }
+ let user=db.users.find(u=>u.phone===phone&&u.role===role);
+ if(user){
+  if(user.password!==password){
+   alert("Incorrect password.");
+   return;
   }
-
-  function bookRide() {
-    const p = document.getElementById("pickup").value.trim();
-    const d = document.getElementById("destination").value.trim();
-
-    document.getElementById("message").textContent =
-      p && d
-      ? "Demo request: " + vehicle + " | " + p + " → " + d
-      : "Please enter pickup and destination.";
+ }else{
+  user={
+   id:Date.now().toString(),
+   name,phone,password,role,
+   vehicle:document.getElementById("vehicle").value.trim(),
+   plate:document.getElementById("plate").value.trim(),
+   referral:("NOOR"+Math.random().toString(36).slice(2,8)).toUpperCase(),
+   referredBy:document.getElementById("refInput").value.trim().toUpperCase(),
+   online:false
+  };
+  if(role==="driver"&&(!user.vehicle||!user.plate)){
+   alert("Enter vehicle model and number plate.");
+   return;
   }
-
-  function setLang(language) {
-    lang = language;
-    document.getElementById("heading").textContent =
-      lang === "ur" ? "اپنی سواری بک کریں" : "Book Your Ride";
-    document.getElementById("pickup").placeholder =
-      lang === "ur" ? "پک اپ مقام" : "Pickup point";
-    document.getElementById("destination").placeholder =
-      lang === "ur" ? "منزل" : "Destination";
-    document.getElementById("book").textContent =
-      lang === "ur" ? "سواری کی درخواست" : "Request Ride";
+  if(user.referredBy){
+   const referrer=db.users.find(u=>u.referral===user.referredBy);
+   if(referrer&&referrer.id!==user.id)user.referrerId=referrer.id;
+   else user.referredBy="";
   }
+  db.users.push(user);
+ }
+ db.current=user.id;
+ save();
+ render();
+}
+function logout(){
+ db.current=null;online=false;save();render();
+}
+function me(){return db.users.find(u=>u.id===db.current)}
+function requestRide(){
+ const pickup=document.getElementById("pickup").value.trim();
+ const destination=document.getElementById("destination").value.trim();
+ if(!pickup||!destination){
+  alert("Enter pickup and destination.");
+  return;
+ }
+ db.rides.unshift({
+  id:Date.now().toString(),
+  passengerId:me().id,
+  pickup,destination,
+  type:document.getElementById("rideType").value,
+  status:"Requested",driverId:null
+ });
+ save();render();
+ alert("Ride request created.");
+}
+function toggleOnline(){
+ const u=me();
+ online=!online;u.online=online;save();render();
+}
+function rideAction(id,action){
+ const ride=db.rides.find(r=>r.id===id);
+ if(!ride)return;
+ if(action==="accept"){
+  if(ride.status!=="Requested"){
+   alert("This ride is no longer available.");return;
+  }
+  ride.driverId=me().id;ride.status="Accepted";
+ }else if(action==="reject"){
+  ride.status="Rejected";
+ }else if(action==="complete"){
+  ride.status="Completed";
+ }else if(action==="cancel"){
+  ride.status="Cancelled";
+ }
+ save();render();
+}
+function shareRef(){
+ const code=me().referral;
+ const msg="Join Noor Rider! My referral code: "+code;
+ if(navigator.share)navigator.share({title:"Noor Rider",text:msg}).catch(()=>{});
+ else if(navigator.clipboard)navigator.clipboard.writeText(msg)
+  .then(()=>alert("Referral code copied."))
+  .catch(()=>prompt("Copy this code:",code));
+ else prompt("Copy this code:",code);
+}
+function render(){
+ const u=me();
+ document.getElementById("auth").classList.toggle("hidden",!!u);
+ document.getElementById("app").classList.toggle("hidden",!u);
+ if(!u)return;
+ document.getElementById("welcome").textContent="Welcome, "+u.name;
+ document.getElementById("profile").textContent=
+  u.role==="driver"?"Driver • "+u.vehicle+" • "+u.plate:"Passenger account";
+ document.getElementById("myRef").textContent=u.referral;
+ document.getElementById("passengerPanel").classList.toggle("hidden",u.role!=="passenger");
+ document.getElementById("driverPanel").classList.toggle("hidden",u.role!=="driver");
+ document.getElementById("onlineBtn").textContent=u.online?"Go Offline":"Go Online";
+ document.getElementById("driverStatus").textContent=u.online?"You are online.":"You are offline.";
+ const requests=document.getElementById("requests");
+ requests.innerHTML="";
+ if(u.role==="driver"){
+  db.rides.filter(r=>r.status==="Requested"&&u.online)
+   .forEach(r=>{
+    const p=db.users.find(x=>x.id===r.passengerId);
+    const d=document.createElement("div");d.className="item";
+    d.textContent=`${r.type}: ${r.pickup} → ${r.destination} | Passenger: ${p?p.name:"Unknown"} `;
+    const a=document.createElement("button");a.textContent="Accept";
+    a.onclick=()=>rideAction(r.id,"accept");
+    const b=document.createElement("button");b.className="danger";b.textContent="Reject";
+    b.onclick=()=>rideAction(r.id,"reject");
+    d.append(a,b);requests.appendChild(d);
+   });
+  if(!requests.children.length)requests.textContent="No available requests.";
+ }
+ const rides=document.getElementById("myRides");
+ rides.innerHTML="";
+ const list=db.rides.filter(r=>r.passengerId===u.id||r.driverId===u.id);
+ if(!list.length)rides.textContent="No rides yet.";
+ list.forEach(r=>{
+  const d=document.createElement("div");d.className="item";
+  d.textContent=`${r.type}: ${r.pickup} → ${r.destination} | ${r.status}`;
+  if(r.driverId){
+   const driver=db.users.find(x=>x.id===r.driverId);
+   d.textContent+=` | Driver: ${driver?driver.name:"Unknown"}`;
+  }
+  if(u.role==="driver"&&r.driverId===u.id&&r.status==="Accepted"){
+   const b=document.createElement("button");b.textContent="Complete Ride";
+   b.onclick=()=>rideAction(r.id,"complete");d.appendChild(b);
+  }
+  if(u.role==="passenger"&&r.passengerId===u.id&&r.status==="Requested"){
+   const b=document.createElement("button");b.className="danger";b.textContent="Cancel Ride";
+   b.onclick=()=>rideAction(r.id,"cancel");d.appendChild(b);
+  }
+  rides.appendChild(d);
+ });
+ const referrals=db.users.filter(x=>x.referrerId===u.id);
+ document.getElementById("refCount").textContent=referrals.length;
+ document.getElementById("commission").textContent=referrals.length*100;
+}
+render();
 </script>
 </body>
   </html>
-      
