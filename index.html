@@ -1,1 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noor Rider</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f2f5f3;color:#17251d}
+header{background:#075c3b;color:white;text-align:center;padding:24px}
+header h1{margin:0;font-size:30px}
+header p{margin-bottom:0}
+.container{max-width:850px;margin:20px auto;padding:15px}
+.card{background:white;padding:20px;margin-bottom:16px;border-radius:14px;box-shadow:0 3px 12px #0000000d}
+h2{margin-top:0;color:#075c3b}
+input,select,button{width:100%;padding:12px;margin:7px 0;border:1px solid #ccd5ce;border-radius:8px;font-size:15px}
+button{background:#087746;color:white;border:0;font-weight:bold;cursor:pointer}
+button.secondary{background:#e5eee8;color:#075c3b}
+.hidden{display:none}
+.balance{font-size:26px;font-weight:bold;color:#087746}
+.notice{padding:12px;border-radius:8px;background:#fff4d5;margin:10px 0}
+.item{border-bottom:1px solid #e5e9e6;padding:12px 0;overflow-wrap:anywhere}
+.small{color:#66736a;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+<h1>🛺 Noor Rider</h1>
+<p>One App • Drivers • Passengers • Secure Referrals</p>
+</header>
+<div class="container">
 
+<section class="card" id="login">
+<h2>Welcome to Noor Rider</h2>
+<p>Choose your account type</p>
+<select id="role">
+<option value="passenger">Passenger</option>
+<option value="driver">Driver</option>
+<option value="admin">Admin</option>
+</select>
+<input id="name" placeholder="Your full name">
+<input id="phone" placeholder="Mobile number">
+<input id="password" type="password" placeholder="Password">
+<button onclick="register()">Register / Login</button>
+<p class="small">Admin access requires administrator credentials.</p>
+</section>
+
+<section class="card hidden" id="dashboard">
+<h2 id="welcome"></h2>
+<p>Account balance</p>
+<div class="balance" id="balance">Rs. 0</div>
+<div class="item"><b>Your referral code:</b> <span id="refcode"></span></div>
+<div class="item"><b>Your referral link:</b> <span id="reflink"></span></div>
+<button class="secondary" onclick="shareReferral()">Share Referral Link</button>
+
+<div id="driverArea" class="hidden">
+<h2>Driver Account</h2>
+<p>Admin adds driver balance manually.</p>
+<div id="driverStatus"></div>
+</div>
+
+<div id="passengerArea" class="hidden">
+<h2>Passenger Account</h2>
+<p>Refer a friend and earn Rs. 2,000 after the referral qualifies.</p>
+</div>
+
+<div id="referralArea">
+<h2>Referral Bonus</h2>
+<p>Bonus: Rs. 2,000 for the referrer and Rs. 2,000 for the eligible new user.</p>
+<form onsubmit="requestPayout(event)">
+<select id="method">
+<option>JazzCash</option>
+<option>Easypaisa</option>
+<option>Bank Account</option>
+</select>
+<input id="payoutAccount" placeholder="Wallet number or bank account details" required>
+<input id="payoutAmount" type="number" min="1" placeholder="Withdrawal amount (Rs.)" required>
+<button type="submit">Request Payout</button>
+</form>
+</div>
+<button class="secondary" onclick="logout()">Logout</button>
+</section>
+
+<section class="card hidden" id="adminPanel">
+<h2>🔐 Admin Control Panel</h2>
+<p class="notice">Administrator-only controls. Never share your admin password.</p>
+
+<h3>Manually Top Up Driver</h3>
+<input id="driverPhone" placeholder="Driver mobile number">
+<input id="topupAmount" type="number" min="1" placeholder="Top-up amount (Rs.)">
+<button onclick="topUp()">Add Driver Balance</button>
+
+<h3>Referral Bonus Management</h3>
+<input id="referralPhone" placeholder="Eligible user's mobile number">
+<button onclick="awardReferral()">Award Rs. 2,000 Referral Bonus</button>
+
+<h3>Payout Requests</h3>
+<div id="payoutList"></div>
+
+<h3>Registered Accounts</h3>
+<div id="userList"></div>
+
+<button class="secondary" onclick="logout()">Logout Admin</button>
+</section>
+
+<section class="card">
+<h2>How Noor Rider Works</h2>
+<div class="item">1. One app for drivers and passengers.</div>
+<div class="item">2. Rs. 2,000 referral bonus, subject to eligibility and admin approval.</div>
+<div class="item">3. Payout options: JazzCash, Easypaisa and bank account.</div>
+<div class="item">4. Drivers receive manual account top-ups from the admin.</div>
+</section>
+</div>
+
+<script>
+const ADMIN_PASSWORD = "CHANGE_THIS_ADMIN_PASSWORD";
+const KEY = "noor_rider_demo_v1";
+let data = JSON.parse(localStorage.getItem(KEY) || '{"users":[],"payouts":[],"bonuses":[]}');
+let current = null;
+
+function save(){
+ localStorage.setItem(KEY,JSON.stringify(data));
+}
+function makeCode(phone){
+ return "NR"+phone.replace(/\D/g,"").slice(-8);
+}
+function register(){
+ const role=document.getElementById("role").value;
+ const name=document.getElementById("name").value.trim();
+ const phone=document.getElementById("phone").value.trim();
+ const password=document.getElementById("password").value;
+ if(!name||!phone||!password){alert("Please fill in all fields.");return;}
+ if(role==="admin"){
+  if(password!==ADMIN_PASSWORD){alert("Invalid admin credentials.");return;}
+  current={role:"admin",name:"Administrator",phone:"admin"};
+  showAdmin();return;
+ }
+ let user=data.users.find(u=>u.phone===phone);
+ if(user){
+  if(user.password!==password){alert("Incorrect password.");return;}
+  current=user;
+ }else{
+  user={name,phone,password,role,balance:0,refcode:makeCode(phone),referrer:null};
+  data.users.push(user);
+  const referredBy=new URLSearchParams(location.search).get("ref");
+  if(referredBy&&referredBy!==user.refcode){
+   const referrer=data.users.find(u=>u.refcode===referredBy);
+   if(referrer){
+    user.referrer=referrer.phone;
+   }
+  }
+  save();
+  current=user;
+ }
+ showDashboard();
+}
+function showDashboard(){
+ document.getElementById("login").classList.add("hidden");
+ document.getElementById("dashboard").classList.remove("hidden");
+ document.getElementById("adminPanel").classList.add("hidden");
+ document.getElementById("welcome").textContent="Welcome, "+current.name;
+ document.getElementById("balance").textContent="Rs. "+current.balance;
+ document.getElementById("refcode").textContent=current.refcode;
+ document.getElementById("reflink").textContent=location.origin+location.pathname+"?ref="+current.refcode;
+ document.getElementById("driverArea").classList.toggle("hidden",current.role!=="driver");
+ document.getElementById("passengerArea").classList.toggle("hidden",current.role!=="passenger");
+ document.getElementById("driverStatus").textContent="Driver top-ups are managed by the administrator.";
+}
+function shareReferral(){
+ const link=location.origin+location.pathname+"?ref="+current.refcode;
+ if(navigator.share)navigator.share({title:"Noor Rider",text:"Join Noor Rider with my referral link",url:link});
+ else if(navigator.clipboard)navigator.clipboard.writeText(link).then(()=>alert("Referral link copied."));
+ else prompt("Copy your referral link:",link);
+}
+function requestPayout(e){
+ e.preventDefault();
+ const amount=Number(document.getElementById("payoutAmount").value);
+ const account=document.getElementById("payoutAccount").value.trim();
+ if(amount<=0||amount>current.balance){alert("Insufficient balance or invalid amount.");return;}
+ data.payouts.push({id:Date.now(),phone:current.phone,amount,method:document.getElementById("method").value,account,status:"Pending"});
+ save();
+ alert("Payout request submitted for admin review.");
+}
+function showAdmin(){
+ document.getElementById("login").classList.add("hidden");
+ document.getElementById("dashboard").classList.add("hidden");
+ document.getElementById("adminPanel").classList.remove("hidden");
+ renderAdmin();
+}
+function topUp(){
+ const phone=document.getElementById("driverPhone").value.trim();
+ const amount=Number(document.getElementById("topupAmount").value);
+ const driver=data.users.find(u=>u.phone===phone&&u.role==="driver");
+ if(!driver||amount<=0){alert("Enter a registered driver and valid amount.");return;}
+ driver.balance+=amount;
+ save();renderAdmin();
+ alert("Driver balance updated.");
+}
+function awardReferral(){
+ const phone=document.getElementById("referralPhone").value.trim();
+ const user=data.users.find(u=>u.phone===phone);
+ if(!user||!user.referrer){alert("No referred user found for this account.");return;}
+ if(data.bonuses.some(b=>b.phone===phone)){alert("Referral bonus already awarded.");return;}
+ const referrer=data.users.find(u=>u.phone===user.referrer);
+ if(!referrer){alert("Referrer account not found.");return;}
+ user.balance+=2000;
+ referrer.balance+=2000;
+ data.bonuses.push({phone,referrer:referrer.phone,amount:2000});
+ save();renderAdmin();
+ alert("Rs. 2,000 awarded to both eligible accounts.");
+}
+function renderAdmin(){
+ document.getElementById("userList").innerHTML=data.users.map(u=>
+ '<div class="item">'+escapeHTML(u.name)+' ('+escapeHTML(u.role)+') — '+escapeHTML(u.phone)+' — Rs. '+u.balance+'</div>'
+ ).join("")||"No registered accounts.";
+ document.getElementById("payoutList").innerHTML=data.payouts.map(p=>
+ '<div class="item">User: '+escapeHTML(p.phone)+'<br>Rs. '+p.amount+' via '+escapeHTML(p.method)+'<br>Account: '+escapeHTML(p.account)+'<br>Status: '+escapeHTML(p.status)+
+ (p.status==="Pending"?'<button onclick="processPayout('+p.id+',true)">Approve</button><button class="secondary" onclick="processPayout('+p.id+',false)">Reject</button>':"")+'</div>'
+ ).join("")||"No payout requests.";
+}
+function processPayout(id,approve){
+ const p=data.payouts.find(x=>x.id===id&&x.status==="Pending");
+ if(!p)return;
+ const u=data.users.find(x=>x.phone===p.phone);
+ if(approve){
+  if(!u||u.balance<p.amount){alert("Insufficient balance.");return;}
+  u.balance-=p.amount;
+  p.status="Approved — payment must be sent manually";
+ }else p.status="Rejected";
+ save();renderAdmin();
+}
+function escapeHTML(s){
+ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function logout(){
+ current=null;
+ document.getElementById("login").classList.remove("hidden");
+ document.getElementById("dashboard").classList.add("hidden");
+ document.getElementById("adminPanel").classList.add("hidden");
+}
+</script>
+</body>
+  </html>
+  
